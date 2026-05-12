@@ -1,13 +1,9 @@
-#include <iostream>
-#include <vector>
-#include <time.h>
+#include "common.h"
 #ifdef _WIN32
 #include <windows.h>
 
 #else
 #endif
-using std::cout;
-using std::endl;
 // 直接去对上面按页申请空间
 inline static void *SystemAlloc(size_t kpage)
 {

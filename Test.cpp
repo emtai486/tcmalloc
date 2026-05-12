@@ -1,4 +1,4 @@
-#include <iostream>
+#include "common.h"
 #include "ObjectPool.hpp"
 
 int main()

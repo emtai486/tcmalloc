@@ -1,9 +1,11 @@
 // 公共头文件，包含一些公共头
 #pragma once
+#include <thread>
 #include <iostream>
 #include <vector>
 #include <time.h>
 #include <assert.h>
+
 using std::cout;
 using std::endl;
 // 小于等于MAX_BYTES，就找thread cache申请
@@ -14,7 +16,7 @@ static const int MAX_BYTES = 256 * 1024;
 static const size_t NFREELISTS = 208;
 
 // obj需要指向的地址
-void *&NextObj(void *ptr)
+static void *&NextObj(void *ptr)
 {
     return *(void **)ptr;
 }
@@ -35,7 +37,7 @@ public:
         // 头删
         void *obj = _freeList;
         _freeList = NextObj(obj);
-        return _freeList;
+        return obj;
     }
     //判断链表是否为空
     bool Empty()

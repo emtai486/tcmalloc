@@ -1,0 +1,66 @@
+#pragma once
+#include "common.h"
+// 一个进程中只需要有一个
+// 单例模式
+class CentralCache
+{
+public:
+    // 对外开放返回唯一对象的接口
+    static CentralCache *GetInstance()
+    {
+        return &_sInst;
+    }
+    // 获取⼀个⾮空的span
+ Span* GetOneSpan(SpanList& list, size_t size)
+ {
+    return nullptr;
+ }
+    // 从中⼼缓存获取⼀定数量的对象给thread cache,start,end是输出型参数
+    size_t FetchRangeObj(void *&start, void *&end, size_t batchNum, size_t size)
+    {
+        //给哪个桶嘞？算一算
+        size_t index=Sizeclass().Index(size);
+        //加上桶锁
+        _spanLists[index]._mtx.lock();
+
+        //获取一个非空页
+        Span* span = GetOneSpan(_spanLists[index],size);
+
+        assert(span);
+        assert(span->_freeList);
+// 从span中获取batchNum个对象
+	// 如果不够batchNum个，有多少拿多少
+        start=span->_freeList;
+        end=start;
+size_t i=0;
+        size_t actualNum=1;
+        while(i<batchNum-1&&NextObj(end)!=nullptr)
+        {
+            end=NextObj(end);
+            ++i;
+            ++actualNum;
+        }
+        //页指向剩下的块
+        span->_freeList=NextObj(end);
+        //切走的最后一块指向空
+        NextObj(end)=nullptr;
+        //解锁
+                _spanLists[index]._mtx.lock();
+
+        return actualNum;
+    }
+
+private:
+    SpanList _spanLists[NFREELISTS];
+
+private:
+    // 构造函数私有
+    CentralCache() {};
+    // 拷贝构造禁用
+    CentralCache(const CentralCache &) = delete;
+    // 自己私有的创建一个类
+    static CentralCache _sInst;
+};
+
+// // inline 解决了声明但是没有定义的情况
+ inline CentralCache CentralCache::_sInst;

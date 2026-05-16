@@ -235,6 +235,15 @@ public:
         next->_prev = prev;
     }
 
+    Span* Begin()
+    {
+        return _head->_next;
+    }
+    Span* End()
+    {
+        return _head;
+    }
+
 private:
     Span *_head;
 public:

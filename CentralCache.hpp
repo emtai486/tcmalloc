@@ -13,7 +13,16 @@ public:
     // 获取⼀个⾮空的span
  Span* GetOneSpan(SpanList& list, size_t size)
  {
-    return nullptr;
+    //查看当前spanlist中是否还有没有分配的对象span
+    Span* it=list.Begin();
+    //遍历spanlist
+    while(it!=list.End())
+    {
+        if(it->_freeList!=nullptr) return it;
+        else it=it->_next;
+    }
+    //没有空闲span只能找 page span
+    return nullptr; 
  }
     // 从中⼼缓存获取⼀定数量的对象给thread cache,start,end是输出型参数
     size_t FetchRangeObj(void *&start, void *&end, size_t batchNum, size_t size)

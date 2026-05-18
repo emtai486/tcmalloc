@@ -19,6 +19,9 @@ using std::endl;
 static const int MAX_BYTES = 256 * 1024;
 // thread cache 和central cache自由链表哈希桶的表大小
 static const size_t NFREELISTS = 208;
+// page cache 管理span list哈希表⼤⼩
+static const size_t NPAGES = 129;
+
 // 32位平台下只有32，64位平台下，有32也有64，所有先判断有没有64
 #ifdef _WIN64
 typedef unsigned long long PAGE_ID;

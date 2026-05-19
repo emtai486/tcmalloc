@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "PageCache.hpp"
 // 一个进程中只需要有一个
 // 单例模式
 class CentralCache
@@ -22,6 +23,8 @@ public:
         else it=it->_next;
     }
     //没有空闲span只能找 page span
+    size_t k = Sizeclass().NumMoveSize(size);
+    PageCache::GetInstance()->NewSpan(k);
     return nullptr; 
  }
     // 从中⼼缓存获取⼀定数量的对象给thread cache,start,end是输出型参数

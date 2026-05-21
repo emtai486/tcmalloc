@@ -24,9 +24,16 @@ public:
             else
                 it = it->_next;
         }
+
+        // 先把central cache的桶锁解掉，这样其他线程释放内存，不会阻塞
+        list._mtx.unlock();
         // 没有空闲span只能找 page span
 
+        PageCache::GetInstance()->pageMtx.lock();
         Span *span = PageCache::GetInstance()->NewSpan(Sizeclass::NumMovePage(size));
+        PageCache::GetInstance()->pageMtx.unlock();
+
+        // 切分不需要加锁，因为其他线程访问不到
 
         // 计算span的起始地址和大小（byte）
         // 页号*一页的大小
@@ -46,6 +53,8 @@ public:
             tail = NextObj(tail);
             start += size;
         }
+        //切好之后，挂到桶里面，需要枷锁
+      list._mtx.lock();
 
         list.PushFront(span);
 
@@ -81,7 +90,7 @@ public:
         // 切走的最后一块指向空
         NextObj(end) = nullptr;
         // 解锁
-        _spanLists[index]._mtx.lock();
+        _spanLists[index]._mtx.unlock();
 
         return actualNum;
     }

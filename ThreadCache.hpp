@@ -52,7 +52,7 @@ public:
         // 实际给的数量
         size_t actualNum = CentralCache::GetInstance()->FetchRangeObj(start, end, batchNum, size);
 
-        assert(actualNum > 1);
+        assert(actualNum > 0);
         if (actualNum == 1)
         {
             assert(start == end);

@@ -89,6 +89,8 @@ public:
         span->_freeList = NextObj(end);
         // 切走的最后一块指向空
         NextObj(end) = nullptr;
+        //记录使用的span数量
+        span->_useCount+=actualNum;
         // 解锁
         _spanLists[index]._mtx.unlock();
 

@@ -69,13 +69,32 @@ public:
         // 头插
         obj = NextObj(obj);
         _freeList = obj;
+        ++_size;
     }
     // 对一串操作
-    void PopRange(void *&start, void *&end, size_t n)
+    void PushRange(void* start, void*end, size_t n)
     {
+        
         NextObj(end) = _freeList;
         _freeList = start;
+        _size+=n;
     }
+        // 对一串操作
+    void PopRange(void *&start, void *&end, size_t n)
+    {
+        assert(n>=_size);
+        start=_freeList;
+        end=start;
+        for(int i=0;i<n-1;i++)
+        {
+            end=NextObj(end);
+        }
+        _freeList=NextObj(end);
+        NextObj(end)=nullptr;
+    size-=n;
+    }
+
+
 
     void *Pop()
     {
@@ -83,6 +102,7 @@ public:
         // 头删
         void *obj = _freeList;
         _freeList = NextObj(obj);
+        --_size;
         return obj;
     }
     // 判断链表是否为空
@@ -94,10 +114,15 @@ public:
     {
         return _maxSize;
     }
+    size_t Size()
+    {
+        return _size;
+    }
 
 private:
     void *_freeList = nullptr;
     size_t _maxSize = 1;
+    size_t _size=0;
 };
 // 管理对齐和映射等关系
 class Sizeclass

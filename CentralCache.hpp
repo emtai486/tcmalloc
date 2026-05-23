@@ -96,6 +96,7 @@ public:
 
         return actualNum;
     }
+ void ReleaseListToSpans(start, size);
 
 private:
     SpanList _spanLists[NFREELISTS];

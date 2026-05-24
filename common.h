@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 
 #include <time.h>
@@ -72,29 +73,27 @@ public:
         ++_size;
     }
     // 对一串操作
-    void PushRange(void* start, void*end, size_t n)
+    void PushRange(void *start, void *end, size_t n)
     {
-        
+
         NextObj(end) = _freeList;
         _freeList = start;
-        _size+=n;
+        _size += n;
     }
-        // 对一串操作
+    // 对一串操作
     void PopRange(void *&start, void *&end, size_t n)
     {
-        assert(n>=_size);
-        start=_freeList;
-        end=start;
-        for(int i=0;i<n-1;i++)
+        assert(n >= _size);
+        start = _freeList;
+        end = start;
+        for (int i = 0; i < n - 1; i++)
         {
-            end=NextObj(end);
+            end = NextObj(end);
         }
-        _freeList=NextObj(end);
-        NextObj(end)=nullptr;
-    size-=n;
+        _freeList = NextObj(end);
+        NextObj(end) = nullptr;
+        _size -= n;
     }
-
-
 
     void *Pop()
     {
@@ -122,7 +121,7 @@ public:
 private:
     void *_freeList = nullptr;
     size_t _maxSize = 1;
-    size_t _size=0;
+    size_t _size = 0;
 };
 // 管理对齐和映射等关系
 class Sizeclass
@@ -252,7 +251,7 @@ public:
 // 管理多个连续大块内存页的跨度结构
 struct Span
 {
-    PAGE_ID _pageID = 0; // 起始页号
+    PAGE_ID _pageId = 0; // 起始页号
     size_t _n = 0;       // 页数
 
     // 带头双向链表结构
@@ -261,6 +260,8 @@ struct Span
 
     size_t _useCount = 0;      // 切好的小块内存的使用计数
     void *_freeList = nullptr; // 切好的小块内存的自由链表
+
+    bool _isUse = false;
 };
 
 // 带头双向链表管理页

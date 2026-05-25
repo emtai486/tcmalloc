@@ -30,7 +30,7 @@ public:
         // 没有空闲span只能找 page span
 
         PageCache::GetInstance()->_pageMtx.lock();
-        Span *span = PageCache::GetInstance()->NewSpan(Sizeclass::NumMovePage(size));
+        Span *span = PageCache::GetInstance()->NewSpan(SizeClass::NumMovePage(size));
         span->_isUse = true;
         PageCache::GetInstance()->_pageMtx.unlock();
 
@@ -65,7 +65,7 @@ public:
     size_t FetchRangeObj(void *&start, void *&end, size_t batchNum, size_t size)
     {
         // 给哪个桶嘞？算一算
-        size_t index = Sizeclass().Index(size);
+        size_t index = SizeClass().Index(size);
         // 加上桶锁
         _spanLists[index]._mtx.lock();
 
@@ -100,7 +100,7 @@ public:
     void ReleaseListToSpans(void *start, size_t byte_size)
     {
         // 算桶
-        size_t index = Sizeclass().Index(byte_size);
+        size_t index = SizeClass().Index(byte_size);
         // 加锁
         _spanLists[index]._mtx.lock();
         while (start)

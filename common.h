@@ -35,6 +35,15 @@ inline static void *SystemAlloc(size_t kpage)
 
     return ptr;
 }
+//系统级从堆上释放
+inline static void SystemFree(void* ptr)
+{
+#ifdef _WIN32
+	VirtualFree(ptr, 0, MEM_RELEASE);
+#else
+	// sbrk unmmap等
+#endif
+}
 
 // 小于等于MAX_BYTES，就找thread cache申请
 // 大于MAX_BYTES，就直接找page cache或者系统堆申请
@@ -124,7 +133,7 @@ private:
     size_t _size = 0;
 };
 // 管理对齐和映射等关系
-class Sizeclass
+class SizeClass
 {
 public:
     // 整体控制在最多10%左右的内碎片浪费
@@ -165,9 +174,10 @@ public:
         {
             return _RoundUp(bytes, 8 * 1024);
         }
-        else
+
+        else//对于大于256kb的，我们按照页对齐
         {
-            assert(false);
+           return _RoundUp(bytes, 1<<PAGE_SHIFT);
         }
         return -1;
     }

@@ -11,7 +11,22 @@ public:
     // 获取⼀个K⻚的span
     Span *NewSpan(size_t k)
     {
-        assert(k > 0 && k < NPAGES);
+        assert(k > 0);
+        
+        // 大于128 page的直接向堆申请
+        if (k > NPAGES - 1)
+        {
+            void *ptr = SystemAlloc(k);
+            Span *span = new Span;
+            // Span* span = _spanPool.New();
+
+            span->_pageId = (PAGE_ID)ptr >> PAGE_SHIFT;
+            span->_n = k;
+            // 页号缓存一下
+            _idSpanMap[span->_pageId] = span;
+            return span;
+        }
+
         if (!_spanLists[k].Empty()) // 当前桶不为空
         {
             return _spanLists[k].PopFront();
@@ -73,6 +88,16 @@ public:
     }
     void ReleaseSpanToPageCache(Span *span)
     {
+        // 大于128 page的直接还给堆
+        if (span->_n > NPAGES - 1)
+        {
+            void *ptr = (void *)(span->_pageId << PAGE_SHIFT);
+            SystemFree(ptr);
+            // delete span;
+           // _spanPool.Delete(span);
+
+            return;
+        }
         // 对span前后的页，尝试进行合并，缓解内存碎片问题
         // 向前合并
         while (1)

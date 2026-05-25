@@ -46,7 +46,7 @@ public:
         Span *bigSpan = new Span;
         void *ptr = SystemAlloc(NPAGES - 1);
         // 算页号，页数
-        bigSpan->_pageId = (PAGE_ID)ptr << PAGE_SHIFT;
+        bigSpan->_pageId = (PAGE_ID)ptr >> PAGE_SHIFT;
         bigSpan->_n = NPAGES - 1;
 
         // 把这个申请到的span插入到对应的桶的位置，再次调用这个函数

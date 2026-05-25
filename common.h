@@ -27,7 +27,7 @@ inline static void *SystemAlloc(size_t kpage)
     void *ptr = VirtualAlloc(0, kpage * (1 << 12), MEM_COMMIT | MEM_RESERVE,
                              PAGE_READWRITE);
 #else
-// linux下brk mmap等
+    // linux下brk mmap等
 #endif
 
     if (ptr == nullptr)
@@ -68,7 +68,7 @@ public:
     {
         assert(obj);
         // 头插
-        obj = NextObj(obj);
+        NextObj(obj) = _freeList;
         _freeList = obj;
         ++_size;
     }
@@ -83,7 +83,7 @@ public:
     // 对一串操作
     void PopRange(void *&start, void *&end, size_t n)
     {
-        assert(n >= _size);
+        assert(n <= _size);
         start = _freeList;
         end = start;
         for (int i = 0; i < n - 1; i++)
@@ -216,8 +216,7 @@ public:
     // ⼀次从中⼼缓存获取多少个
     static size_t NumMoveSize(size_t size)
     {
-        if (size == 0)
-            return 0;
+        assert(size > 0);
 
         // [2, 512]，⼀次批量移动多少个对象的(慢启动)上限值
         // ⼩对象⼀次批量上限⾼
@@ -293,10 +292,10 @@ public:
         Span *prev = pos->_prev;
 
         // prev new pos
+        prev->_next = newSpan;
         newSpan->_prev = prev;
         newSpan->_next = pos;
         pos->_prev = newSpan;
-        prev->_next = newSpan;
     }
     // 任意删
     void Erase(Span *pos)
@@ -305,9 +304,8 @@ public:
         assert(pos != _head);
 
         // prev Xpos next
-        Span *next = pos->_next;
         Span *prev = pos->_prev;
-
+        Span *next = pos->_next;
         prev->_next = next;
         next->_prev = prev;
     }

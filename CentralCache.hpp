@@ -31,15 +31,15 @@ public:
 
         PageCache::GetInstance()->_pageMtx.lock();
         Span *span = PageCache::GetInstance()->NewSpan(Sizeclass::NumMovePage(size));
-          span-> _isUse = true;
+        span->_isUse = true;
         PageCache::GetInstance()->_pageMtx.unlock();
 
         // 切分不需要加锁，因为其他线程访问不到
 
         // 计算span的起始地址和大小（byte）
         // 页号*一页的大小
-        char *start = (char *)(span->_pageId << PAGE_SHIFT);
-        size_t bytes = (span->_n << PAGE_SHIFT);
+        char *start = (char *)((span->_pageId) << (PAGE_SHIFT));
+        size_t bytes = ((span->_n) << (PAGE_SHIFT));
         char *end = (start + bytes);
         // 把页切分成一个个span挂起来
         // 先切一块作为头，方便后续尾插
@@ -54,12 +54,12 @@ public:
             tail = NextObj(tail);
             start += size;
         }
-        //切好之后，挂到桶里面，需要枷锁
-      list._mtx.lock();
+        // 切好之后，挂到桶里面，需要枷锁
+        list._mtx.lock();
 
         list.PushFront(span);
 
-        return nullptr;
+        return span;
     }
     // 从中⼼缓存获取⼀定数量的对象给thread cache,start,end是输出型参数
     size_t FetchRangeObj(void *&start, void *&end, size_t batchNum, size_t size)
@@ -90,54 +90,53 @@ public:
         span->_freeList = NextObj(end);
         // 切走的最后一块指向空
         NextObj(end) = nullptr;
-        //记录使用的span数量
-        span->_useCount+=actualNum;
+        // 记录使用的span数量
+        span->_useCount += actualNum;
         // 解锁
         _spanLists[index]._mtx.unlock();
 
         return actualNum;
     }
- void ReleaseListToSpans(void* start, size_t byte_size)
- {
-    //算桶
-    size_t index=Sizeclass().Index(byte_size);
-    //加锁
-    _spanLists[index]._mtx.lock();
-    while (start)
-	{
-		void* next = NextObj(start);
+    void ReleaseListToSpans(void *start, size_t byte_size)
+    {
+        // 算桶
+        size_t index = Sizeclass().Index(byte_size);
+        // 加锁
+        _spanLists[index]._mtx.lock();
+        while (start)
+        {
+            void *next = NextObj(start);
 
-		Span* span = PageCache::GetInstance()->MapObjectToSpan(start);
-		NextObj(start) = span->_freeList;
-		span->_freeList = start;
-		span->_useCount--;
+            Span *span = PageCache::GetInstance()->MapObjectToSpan(start);
+            NextObj(start) = span->_freeList;
+            span->_freeList = start;
+            span->_useCount--;
 
-		// 说明span的切分出去的所有小块内存都回来了
-		// 这个span就可以再回收给page cache，pagecache可以再尝试去做前后页的合并
-		if (span->_useCount == 0)
-		{
-			_spanLists[index].Erase(span);
-			span->_freeList = nullptr;
-			span->_next = nullptr;
-			span->_prev = nullptr;
+            // 说明span的切分出去的所有小块内存都回来了
+            // 这个span就可以再回收给page cache，pagecache可以再尝试去做前后页的合并
+            if (span->_useCount == 0)
+            {
+                _spanLists[index].Erase(span);
+                span->_freeList = nullptr;
+                span->_next = nullptr;
+                span->_prev = nullptr;
 
-			// 释放span给page cache时，使用page cache的锁就可以了
-			// 这时把桶锁解掉
-			_spanLists[index]._mtx.unlock();
+                // 释放span给page cache时，使用page cache的锁就可以了
+                // 这时把桶锁解掉
+                _spanLists[index]._mtx.unlock();
 
-			PageCache::GetInstance()->_pageMtx.lock();
-			PageCache::GetInstance()->ReleaseSpanToPageCache(span);
-			PageCache::GetInstance()->_pageMtx.unlock();
+                PageCache::GetInstance()->_pageMtx.lock();
+                PageCache::GetInstance()->ReleaseSpanToPageCache(span);
+                PageCache::GetInstance()->_pageMtx.unlock();
 
-			_spanLists[index]._mtx.lock();
-		}
+                _spanLists[index]._mtx.lock();
+            }
 
-		start = next;
-    }
-    //解锁
+            start = next;
+        }
+        // 解锁
         _spanLists[index]._mtx.unlock();
-
- }
+    }
 
 private:
     SpanList _spanLists[NFREELISTS];

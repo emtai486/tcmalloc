@@ -5,9 +5,11 @@
 #include <mutex>
 
 #include <iostream>
+#include <cstdio>
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include <atomic>
 
 #include <time.h>
 #include <assert.h>
@@ -24,8 +26,7 @@ using std::endl;
 inline static void *SystemAlloc(size_t kpage)
 {
 #ifdef _WIN32
-    void *ptr = VirtualAlloc(0, kpage * (1 << 12), MEM_COMMIT | MEM_RESERVE,
-                             PAGE_READWRITE);
+    void *ptr = VirtualAlloc(0, kpage << 13, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #else
     // linux下brk mmap等
 #endif
@@ -35,13 +36,13 @@ inline static void *SystemAlloc(size_t kpage)
 
     return ptr;
 }
-//系统级从堆上释放
-inline static void SystemFree(void* ptr)
+// 系统级从堆上释放
+inline static void SystemFree(void *ptr)
 {
 #ifdef _WIN32
-	VirtualFree(ptr, 0, MEM_RELEASE);
+    VirtualFree(ptr, 0, MEM_RELEASE);
 #else
-	// sbrk unmmap等
+    // sbrk unmmap等
 #endif
 }
 
@@ -175,9 +176,9 @@ public:
             return _RoundUp(bytes, 8 * 1024);
         }
 
-        else//对于大于256kb的，我们按照页对齐
+        else // 对于大于256kb的，我们按照页对齐
         {
-           return _RoundUp(bytes, 1<<PAGE_SHIFT);
+            return _RoundUp(bytes, 1 << PAGE_SHIFT);
         }
         return -1;
     }
@@ -267,6 +268,7 @@ struct Span
     Span *_prev = nullptr;
     Span *_next = nullptr;
 
+    size_t _objSize = 0;       // 切好的小对象的大小
     size_t _useCount = 0;      // 切好的小块内存的使用计数
     void *_freeList = nullptr; // 切好的小块内存的自由链表
 

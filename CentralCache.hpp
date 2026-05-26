@@ -32,6 +32,7 @@ public:
         PageCache::GetInstance()->_pageMtx.lock();
         Span *span = PageCache::GetInstance()->NewSpan(SizeClass::NumMovePage(size));
         span->_isUse = true;
+        span->_objSize = size;
         PageCache::GetInstance()->_pageMtx.unlock();
 
         // 切分不需要加锁，因为其他线程访问不到
@@ -46,14 +47,16 @@ public:
         span->_freeList = start;
         start += size;
         void *tail = span->_freeList;
-
+        int i = 1;
         while (start < end)
         {
+            i++;
             NextObj(tail) = start;
 
             tail = NextObj(tail);
             start += size;
         }
+        NextObj(tail) = nullptr;
         // 切好之后，挂到桶里面，需要枷锁
         list._mtx.lock();
 

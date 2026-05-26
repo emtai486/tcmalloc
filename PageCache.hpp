@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "ObjectPool.hpp"
 
 class PageCache
 {
@@ -12,13 +13,14 @@ public:
     Span *NewSpan(size_t k)
     {
         assert(k > 0);
-        
+
         // 大于128 page的直接向堆申请
         if (k > NPAGES - 1)
         {
             void *ptr = SystemAlloc(k);
-            Span *span = new Span;
-            // Span* span = _spanPool.New();
+            // Span *span = new Span;
+            // 用定长内存池去替代new
+            Span *span = _spanPool.New();
 
             span->_pageId = (PAGE_ID)ptr >> PAGE_SHIFT;
             span->_n = k;
@@ -38,7 +40,8 @@ public:
             {
                 // 拿出这个大span
                 Span *nSpan = _spanLists[i].PopFront();
-                Span *kSpan = new Span;
+                // Span *kSpan = new Span;
+                Span *kSpan = _spanPool.New();
                 // nspan头部切k页出来
                 kSpan->_pageId = nSpan->_pageId;
                 kSpan->_n = k;
@@ -58,7 +61,8 @@ public:
             }
         }
         // 到这里说明没有大span,就要向堆去要了
-        Span *bigSpan = new Span;
+        // Span *bigSpan = new Span;
+        Span *bigSpan = _spanPool.New();
         void *ptr = SystemAlloc(NPAGES - 1);
         // 算页号，页数
         bigSpan->_pageId = (PAGE_ID)ptr >> PAGE_SHIFT;
@@ -94,7 +98,7 @@ public:
             void *ptr = (void *)(span->_pageId << PAGE_SHIFT);
             SystemFree(ptr);
             // delete span;
-           // _spanPool.Delete(span);
+            _spanPool.Delete(span);
 
             return;
         }
@@ -127,7 +131,7 @@ public:
             span->_n += prevSpan->_n;
 
             _spanLists[prevSpan->_n].Erase(prevSpan);
-            delete prevSpan;
+            _spanPool.Delete(prevSpan);
         }
 
         // 向后合并
@@ -154,7 +158,7 @@ public:
             span->_n += nextSpan->_n;
 
             _spanLists[nextSpan->_n].Erase(nextSpan);
-            delete nextSpan;
+            _spanPool.Delete(nextSpan);
         }
         // 从桶中拿出，标记为未用
         _spanLists[span->_n].PushFront(span);
@@ -168,6 +172,7 @@ public:
 
 private:
     SpanList _spanLists[NPAGES];
+    ObjectPool<Span> _spanPool;
     std::unordered_map<PAGE_ID, Span *> _idSpanMap;
     // 饿汉-单例模式
     PageCache()

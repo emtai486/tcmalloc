@@ -1,20 +1,6 @@
+#pragma once
 #include "common.h"
-#ifdef _WIN32
-#include <windows.h>
 
-#else
-#endif
-// 直接去对上面按页申请空间
-inline static void *SystemAlloc(size_t kpage)
-{
-// 条件编译，区分Linux和windows
-#ifdef _WIN32
-    // 一页8kb，所以页数<<13,*8*1024
-    void *ptr = VirtualAlloc(0, kpage << 13, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#else
-    // Linux中brk,mmap
-#endif
-}
 template <class T>
 class ObjectPool
 {
@@ -73,67 +59,67 @@ private:
     void *_freeList = nullptr; // 自由链表，管理自由内存的头指针
 };
 
-/////////////////////////////////////////////////////////////
-/////////////////////下面是测试代码///////////////////////////
-////////////////////////////////////////////////////////////
-struct TreeNode
-{
-    int _val;
-    TreeNode *_left;
-    TreeNode *_right;
+// /////////////////////////////////////////////////////////////
+// /////////////////////下面是测试代码///////////////////////////
+// ////////////////////////////////////////////////////////////
+// struct TreeNode
+// {
+//     int _val;
+//     TreeNode *_left;
+//     TreeNode *_right;
 
-    TreeNode()
-        : _val(0), _left(nullptr), _right(nullptr)
-    {
-    }
-};
+//     TreeNode()
+//         : _val(0), _left(nullptr), _right(nullptr)
+//     {
+//     }
+// };
 
-void TestObjectPool()
-{
-    // 申请释放的轮次
-    const size_t Rounds = 3;
+// void TestObjectPool()
+// {
+//     // 申请释放的轮次
+//     const size_t Rounds = 3;
 
-    // 每轮申请释放多少次
-    const size_t N = 100000;
+//     // 每轮申请释放多少次
+//     const size_t N = 100000;
 
-    size_t begin1 = clock();
-    std::vector<TreeNode *> v1;
-    v1.reserve(N);
+//     size_t begin1 = clock();
+//     std::vector<TreeNode *> v1;
+//     v1.reserve(N);
 
-    for (size_t j = 0; j < Rounds; ++j)
-    {
-        for (int i = 0; i < N; ++i)
-        {
-            v1.push_back(new TreeNode);
-        }
-        for (int i = 0; i < N; ++i)
-        {
-            delete v1[i];
-        }
-        v1.clear();
-    }
+//     for (size_t j = 0; j < Rounds; ++j)
+//     {
+//         for (int i = 0; i < N; ++i)
+//         {
+//             v1.push_back(new TreeNode);
+//         }
+//         for (int i = 0; i < N; ++i)
+//         {
+//             delete v1[i];
+//         }
+//         v1.clear();
+//     }
 
-    size_t end1 = clock();
+//     size_t end1 = clock();
 
-    ObjectPool<TreeNode> TNPool;
-    size_t begin2 = clock();
-    std::vector<TreeNode *> v2;
-    v2.reserve(N);
+//     ObjectPool<TreeNode> TNPool;
+//     size_t begin2 = clock();
+//     std::vector<TreeNode *> v2;
+//     v2.reserve(N);
 
-    for (size_t j = 0; j < Rounds; ++j)
-    {
-        for (int i = 0; i < N; ++i)
-        {
-            v2.push_back(TNPool.New());
-        }
-        for (int i = 0; i < 100000; ++i)
-        {
-            TNPool.Delete(v2[i]);
-        }
-        v2.clear();
-    }
-    size_t end2 = clock();
+//     for (size_t j = 0; j < Rounds; ++j)
+//     {
+//         for (int i = 0; i < N; ++i)
+//         {
+//             v2.push_back(TNPool.New());
+//         }
+//         for (int i = 0; i < 100000; ++i)
+//         {
+//             TNPool.Delete(v2[i]);
+//         }
+//         v2.clear();
+//     }
+//     size_t end2 = clock();
 
-    cout << "new cost time:" << end1 - begin1 << endl;
-    cout << "object pool cost time:" << end2 - begin2 << endl;
-}
+//     cout << "new cost time:" << end1 - begin1 << endl;
+//     cout << "object pool cost time:" << end2 - begin2 << endl;
+// }

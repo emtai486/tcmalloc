@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 #include "ObjectPool.hpp"
-
+#include "PageMap.h"
 class PageCache
 {
 public:
@@ -25,7 +25,8 @@ public:
             span->_pageId = (PAGE_ID)ptr >> PAGE_SHIFT;
             span->_n = k;
             // 页号缓存一下
-            _idSpanMap[span->_pageId] = span;
+            //_idSpanMap[span->_pageId] = span;
+            _idSpanMap.set(span->_pageId, span);
             return span;
         }
 
@@ -36,7 +37,9 @@ public:
             // 建立id和span的映射，方便central cache回收小块内存时，查找对应的span
             for (PAGE_ID i = 0; i < kSpan->_n; ++i)
             {
-                _idSpanMap[kSpan->_pageId + i] = kSpan;
+               // _idSpanMap[kSpan->_pageId + i] = kSpan;
+                _idSpanMap.set(kSpan->_pageId+i, kSpan);
+
             }
 
             return kSpan;
@@ -59,11 +62,17 @@ public:
                 nSpan->_n -= k;
                 // 把剩下的挂到新位置
                 _spanLists[nSpan->_n].PushFront(nSpan);
-
+                // 存储nSpan的首位页号跟nSpan映射，方便page cache回收内存时
+            // 进行的合并查找
+            //_idSpanMap[nSpan->_pageId] = nSpan;
+            //_idSpanMap[nSpan->_pageId + nSpan->_n - 1] = nSpan;
+                _idSpanMap.set(nSpan->_pageId, nSpan);
+                _idSpanMap.set(nSpan->_pageId + nSpan->_n - 1, nSpan);
                 // 建立id和span的映射，方便central cache回收小块内存时，查找对应的span
                 for (PAGE_ID i = 0; i < kSpan->_n; ++i)
                 {
-                    _idSpanMap[kSpan->_pageId + i] = kSpan;
+                    //_idSpanMap[kSpan->_pageId + i] = kSpan;
+                    _idSpanMap.set(kSpan->_pageId + i, kSpan);
                 }
 
                 return kSpan;
@@ -87,21 +96,24 @@ public:
     {
         PAGE_ID id = ((PAGE_ID)obj >> PAGE_SHIFT);
 
-        {
-            std::unique_lock<std::mutex> lock(_pageMtx);
-            auto ret = _idSpanMap.find(id);
-            // 找到了
-            if (ret != _idSpanMap.end())
-            {
-                return ret->second;
-            }
-            // 没找到
-            else
-            {
-                assert(false);
-                return nullptr;
-            }
-        }
+        //{
+        //    std::unique_lock<std::mutex> lock(_pageMtx);
+        //    auto ret = _idSpanMap.find(id);
+        //    // 找到了
+        //    if (ret != _idSpanMap.end())
+        //    {
+        //        return ret->second;
+        //    }
+        //    // 没找到
+        //    else
+        //    {
+        //        assert(false);
+        //        return nullptr;
+        //    }
+        //}
+        auto ret = (Span*)_idSpanMap.get(id);
+        assert(ret != nullptr);
+        return ret;
     }
     void ReleaseSpanToPageCache(Span* span)
     {
@@ -120,15 +132,21 @@ public:
         while (1)
         {
             PAGE_ID prevId = span->_pageId - 1;
-            auto ret = _idSpanMap.find(prevId);
-            // 前面的页号没有，不合并了
-            if (ret == _idSpanMap.end())
+            //auto ret = _idSpanMap.find(prevId);
+            //// 前面的页号没有，不合并了
+            //if (ret == _idSpanMap.end())
+            //{
+            //	break;
+            //}
+
+            auto ret = (Span*)_idSpanMap.get(prevId);
+            if (ret == nullptr)
             {
                 break;
             }
 
             // 前面相邻页的span在使用，不合并了
-            Span* prevSpan = ret->second;
+            Span* prevSpan = ret;
             if (prevSpan->_isUse == true)
             {
                 break;
@@ -144,6 +162,7 @@ public:
             span->_n += prevSpan->_n;
 
             _spanLists[prevSpan->_n].Erase(prevSpan);
+            //delete prevSpan;
             _spanPool.Delete(prevSpan);
         }
 
@@ -151,13 +170,19 @@ public:
         while (1)
         {
             PAGE_ID nextId = span->_pageId + span->_n;
-            auto ret = _idSpanMap.find(nextId);
+            /*auto ret = _idSpanMap.find(nextId);
             if (ret == _idSpanMap.end())
+            {
+                break;
+            }*/
+
+            auto ret = (Span*)_idSpanMap.get(nextId);
+            if (ret == nullptr)
             {
                 break;
             }
 
-            Span* nextSpan = ret->second;
+            Span* nextSpan = ret;
             if (nextSpan->_isUse == true)
             {
                 break;
@@ -171,13 +196,16 @@ public:
             span->_n += nextSpan->_n;
 
             _spanLists[nextSpan->_n].Erase(nextSpan);
+            //delete nextSpan;
             _spanPool.Delete(nextSpan);
         }
         // 从桶中拿出，标记为未用
         _spanLists[span->_n].PushFront(span);
         span->_isUse = false;
-        _idSpanMap[span->_pageId] = span;
-        _idSpanMap[span->_pageId + span->_n - 1] = span;
+       /* _idSpanMap[span->_pageId] = span;
+        _idSpanMap[span->_pageId + span->_n - 1] = span;*/
+        _idSpanMap.set(span->_pageId, span);
+        _idSpanMap.set(span->_pageId + span->_n - 1, span);
     }
 
 public:
@@ -186,7 +214,8 @@ public:
 private:
     SpanList _spanLists[NPAGES];
     ObjectPool<Span> _spanPool;
-    std::unordered_map<PAGE_ID, Span*> _idSpanMap;
+   // std::unordered_map<PAGE_ID, Span*> _idSpanMap;
+    TCMalloc_PageMap1<32 - PAGE_SHIFT> _idSpanMap;
     // 饿汉-单例模式
     PageCache()
     {
